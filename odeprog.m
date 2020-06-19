@@ -17,7 +17,7 @@ if nargin < 3 || isempty(flag)
         new_t = t(end) + T_offset;
         perc=new_t/tfin;
         area([new_t tfin-new_t;new_t tfin-new_t]);
-        title([num2str(perc*100) '\%']);
+        title([num2str(perc*100) '%'],'Interpreter','none');
         odeprogglobvar(8:13)=clock;
     end
     % Stop the computation after some elapsed time, in seconds.
@@ -45,7 +45,7 @@ else
         axis([1,2,0,tfin]);
         set(gca,'XTickLabel',[],'NextPlot','replacechildren');
         ylabel('Simulation Progress - Time (s)');
-        title('0\%');
+        title('0%','Interpreter','none');
         area([0 tfin;0 tfin]);
         uicontrol('Style', 'pushbutton', 'String', 'Abort','Position', [7 460 90 30], 'Callback', 'close(gcf)')
         pause(0.1);
