@@ -16,7 +16,8 @@ function ub = background_flow(x,y,z,d3,t,row_order,rot)
 	omega3 = zeros(length(d3),1);
 
 	% Convert to the new parameterisation frame.
-	Omega = (transpose(rot)*[omega1,omega2,omega3]')';
+	% Omega should be halved to give the angular velocity.
+	Omega = 0.5*(transpose(rot)*[omega1,omega2,omega3]')';
 	ub = (rot*[u, v, w]')';
 
 	% Arrange the elements in the correct order for output.
