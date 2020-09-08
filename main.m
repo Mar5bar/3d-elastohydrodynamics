@@ -96,6 +96,8 @@ while (T_achieved < T) % While we have not finished the simulation.
 		% We compute the angle parameterisation with respect to this new basis.
 		Z = [new_X(1,:)';euler_angles(new_d1,new_d2,new_d3)];
 		flag = false;
+	else
+		rot = eye(3);
 	end
 
 	% Solve the system in this new coordinate system.
@@ -139,7 +141,6 @@ while (T_achieved < T) % While we have not finished the simulation.
 		[x,y,z,PSI] = spatial_coords(Z_at_ts(:,i));
 		X(:,:,current_time_ind+i-1) = (transpose(rot)*[x,y,z]')';
 		[d1,d2,d3] = directors(Z_at_ts(:,i));
-        Z = [x(1);y(1);z(1);euler_angles(d1,d2,d3)];
 		D1(:,:,current_time_ind+i-1) = (transpose(rot)*d1')';
 		D2(:,:,current_time_ind+i-1) = (transpose(rot)*d2')';
 		D3(:,:,current_time_ind+i-1) = (transpose(rot)*d3')';
