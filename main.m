@@ -60,6 +60,7 @@ last_Z = Z;
 D1 = zeros(N,3,length(ts));
 D2 = zeros(N,3,length(ts));
 D3 = zeros(N,3,length(ts));
+[D1(:,:,1),D2(:,:,1),D3(:,:,1)] = directors(last_Z);
 current_time_ind = 1;
 % This will enable an initial reorientation, usually a good idea.
 flag = true;
@@ -114,11 +115,11 @@ while (T_achieved < T) % While we have not finished the simulation.
 %---
 
 	% Evaluate the solution with ode15s, 
-	sol=ode15s(dZ,[0,T-T_achieved],Z,ode_ops);
+	sol=ode15s(dZ,[T_achieved,T],Z,ode_ops);
 
 	% We now compute the solution at the timepoints requested, retaining Z as returned by the solver.
 	old_T_achieved = T_achieved;
-	T_achieved = sol.x(end) + old_T_achieved;
+	T_achieved = sol.x(end);
 	% We generate the spatial coordinates of the exact last step taken by the solver.
 	% We need to convert these to the original basis, so multiply by inv(rot)=transpose(rot).
 	Z = sol.y(:,end);
@@ -132,18 +133,17 @@ while (T_achieved < T) % While we have not finished the simulation.
 	% This will prune the ts such that we are only getting timepoints that we need.
 	mask = ts <= T_achieved;
 	valid_ts = ts(mask);
-    valid_ts = valid_ts(current_time_ind:end)-old_T_achieved;
-    valid_ts(1) = 0;
+    valid_ts = valid_ts(current_time_ind+1:end);
     
     % After this setup, perform the solution evaluation.
 	Z_at_ts = deval(sol,valid_ts);
 	for i = 1 : length(valid_ts)
 		[x,y,z,PSI] = spatial_coords(Z_at_ts(:,i));
-		X(:,:,current_time_ind+i-1) = (transpose(rot)*[x,y,z]')';
+		X(:,:,current_time_ind+i) = (transpose(rot)*[x,y,z]')';
 		[d1,d2,d3] = directors(Z_at_ts(:,i));
-		D1(:,:,current_time_ind+i-1) = (transpose(rot)*d1')';
-		D2(:,:,current_time_ind+i-1) = (transpose(rot)*d2')';
-		D3(:,:,current_time_ind+i-1) = (transpose(rot)*d3')';
+		D1(:,:,current_time_ind+i) = (transpose(rot)*d1')';
+		D2(:,:,current_time_ind+i) = (transpose(rot)*d2')';
+		D3(:,:,current_time_ind+i) = (transpose(rot)*d3')';
 	end
 
 	% Update the current time ind.
