@@ -103,7 +103,7 @@ while (T_achieved < T) % While we have not finished the simulation.
 
 	% Solve the system in this new coordinate system.
 	eventFunc = @(t,Z,varargin) odeabort(t,Z,varargin,N,delta); % Aborts solution if near a singularity.
-	progressFunc = @(t,y,flag,varargin) odeprog(t,y,flag,varargin,T_achieved); % Displays a progress bar.
+	progressFunc = @(t,y,flag,varargin) odeprog(t,y,flag,varargin); % Displays a progress bar.
 	ode_ops = odeset('OutputFcn',progressFunc,'Events',eventFunc,'Stats','off','AbsTol',1e-5,'RelTol',1e-5);
 
 	% Setup the RHS function. Drastic speedup if using user-compiled mex function.

@@ -1,4 +1,4 @@
-function status = odeprog(t,y,flag,varargin,T_offset)
+function status = odeprog(t,y,flag,varargin)
 % Adapted from:
 % Tim Franklin
 % Virginia Tech
@@ -11,10 +11,10 @@ global timeouts
 
 if nargin < 3 || isempty(flag) 
     if(etime(clock,odeprogglobvar(8:13))>0.5)
-        tfin=odeprogglobvar(1) + T_offset;
+        tfin=odeprogglobvar(1);
         sstrt=odeprogglobvar(2:7);
         figure(95);
-        new_t = t(end) + T_offset;
+        new_t = t(end);
         perc=new_t/tfin;
         area([new_t tfin-new_t;new_t tfin-new_t]);
         title([num2str(perc*100) '%'],'Interpreter','none');
@@ -37,7 +37,7 @@ else
         odeprogglobvar(1)=t(end);
         odeprogglobvar(2:7)=clock;
         odeprogglobvar(8:13)=clock;
-        tfin=odeprogglobvar(1) + T_offset;
+        tfin=odeprogglobvar(1);
         sstrt=odeprogglobvar(2:7);
         figure(95); 
         set(gcf,'Position',[4,40,100,500],'MenuBar','none','NumberTitle','off');
