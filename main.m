@@ -118,7 +118,6 @@ while (T_achieved < T) % While we have not finished the simulation.
 	sol=ode15s(dZ,[T_achieved,T],Z,ode_ops);
 
 	% We now compute the solution at the timepoints requested, retaining Z as returned by the solver.
-	old_T_achieved = T_achieved;
 	T_achieved = sol.x(end);
 	% We generate the spatial coordinates of the exact last step taken by the solver.
 	% We need to convert these to the original basis, so multiply by inv(rot)=transpose(rot).
@@ -136,14 +135,16 @@ while (T_achieved < T) % While we have not finished the simulation.
     valid_ts = valid_ts(current_time_ind+1:end);
     
     % After this setup, perform the solution evaluation.
-	Z_at_ts = deval(sol,valid_ts);
-	for i = 1 : length(valid_ts)
-		[x,y,z,PSI] = spatial_coords(Z_at_ts(:,i));
-		X(:,:,current_time_ind+i) = (transpose(rot)*[x,y,z]')';
-		[d1,d2,d3] = directors(Z_at_ts(:,i));
-		D1(:,:,current_time_ind+i) = (transpose(rot)*d1')';
-		D2(:,:,current_time_ind+i) = (transpose(rot)*d2')';
-		D3(:,:,current_time_ind+i) = (transpose(rot)*d3')';
+    if ~isempty(valid_ts)
+		Z_at_ts = deval(sol,valid_ts);
+		for i = 1 : length(valid_ts)
+			[x,y,z,PSI] = spatial_coords(Z_at_ts(:,i));
+			X(:,:,current_time_ind+i) = (transpose(rot)*[x,y,z]')';
+			[d1,d2,d3] = directors(Z_at_ts(:,i));
+			D1(:,:,current_time_ind+i) = (transpose(rot)*d1')';
+			D2(:,:,current_time_ind+i) = (transpose(rot)*d2')';
+			D3(:,:,current_time_ind+i) = (transpose(rot)*d3')';
+		end
 	end
 
 	% Update the current time ind.
