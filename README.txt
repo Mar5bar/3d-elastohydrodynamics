@@ -4,7 +4,7 @@
 MATLAB scripts and functions for the simulation of flexible, inextensible
 untwistable filaments in three dimensions.
 
-Installation
+Installation and use
 -------------
 
 Clone or download the contents of the repository, and run 
@@ -21,6 +21,12 @@ codegen_dz_free_space
 from within MATLAB, providing a supported compiler has been set up (see 'help
 codegen' in MATLAB). Sample MEX files for Mac OS are provided, but are not
 guaranteed to work on your system.
+
+Extensions
+-------------
+To include the effects of internally generated moments, specify them in
+integrated_internal_moments.m (integrated from s to 1) following the example
+sinusoidal moments.
 
 License
 -------------

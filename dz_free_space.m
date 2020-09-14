@@ -3,6 +3,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 %	the filament given in Z, with current basis ROT. Filament aspect ratio is
 %	EPSILON, with number of segments N and elastohydrodynamic number EH. T is
 %	the current time.
+	coder.extrinsic('integrated_internal_moments')
 
 	epsquared = epsilon^2;
 	Nsquared = N^2;
@@ -151,6 +152,11 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 	R(4:3:end) = kappa1;
 	R(5:3:end) = kappa2;
 	R(6:3:end) = kappa3/(1+sigma);
+
+	% Add on the integrated contribution of any internally generated moments.
+	internal_moments = zeros(3,N);
+	internal_moments = integrated_internal_moments(t,N);
+	R(4:end) = R(4:end) - internal_moments(:);
 
 	% Form the linear system.
 	lin_sys = -EH*B*Ainv*Q;
