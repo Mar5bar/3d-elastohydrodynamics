@@ -26,7 +26,8 @@ Extensions
 -------------
 To include the effects of internally generated moments, specify them in
 integrated_internal_moments.m (integrated from s to 1) following the example
-sinusoidal moments.
+sinusoidal moments. Similarly, specify non-zero intrinsic curvatures in
+intrinsic_curvature.m
 
 License
 -------------

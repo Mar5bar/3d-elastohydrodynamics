@@ -4,6 +4,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 %	EPSILON, with number of segments N and elastohydrodynamic number EH. T is
 %	the current time.
 	coder.extrinsic('integrated_internal_moments')
+	coder.extrinsic('intrinsic_curvature')
 
 	epsquared = epsilon^2;
 	Nsquared = N^2;
@@ -138,10 +139,14 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 	d2ds = [-0.5*d2(3,:) + 2*d2(2,:) - 1.5*d2(1,:); 0.5*d2(3,:) - 0.5*d2(1,:); -1/12*d2(5:end,:) + 2/3*d2(4:end-1,:) - 2/3*d2(2:end-3,:) + 1/12*d2(1:end-4,:); 0.5*d2(end,:) - 0.5*d2(end-2,:); 1.5*d2(end,:) - 2*d2(end-1,:) + 0.5*d2(end-2,:)]*N;
 	d3ds = [-0.5*d3(3,:) + 2*d3(2,:) - 1.5*d3(1,:); 0.5*d3(3,:) - 0.5*d3(1,:); -1/12*d3(5:end,:) + 2/3*d3(4:end-1,:) - 2/3*d3(2:end-3,:) + 1/12*d3(1:end-4,:); 0.5*d3(end,:) - 0.5*d3(end-2,:); 1.5*d3(end,:) - 2*d3(end-1,:) + 0.5*d3(end-2,:)]*N;
 
-	% We now compute kappa1,kappa2,kappa3 at the s_i.
-	kappa1 = dot(d3,d2ds,2);
-	kappa2 = dot(d1,d3ds,2);
-	kappa3 = dot(d2,d1ds,2);
+	% We now compute kappa1,kappa2,kappa3 at the s_i, and subtract off the
+	% intrinsic curvature. Now, kappa represents the difference between the
+	% curvature and the intrinsic curvature, not simply the curvature.
+	intrinsic_curv = zeros(N,3);
+	intrinsic_curv = intrinsic_curvature(t,N);
+	kappa1 = dot(d3,d2ds,2) - intrinsic_curv(:,1);
+	kappa2 = dot(d1,d3ds,2) - intrinsic_curv(:,2);
+	kappa3 = dot(d2,d1ds,2) - intrinsic_curv(:,3);
 	
 	% We are assuming moment free at the base.
 	kappa1(1) = 0;
