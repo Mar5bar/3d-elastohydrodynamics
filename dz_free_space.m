@@ -47,60 +47,92 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 	B(2,1:3*(N+1)) = circshift(B(1,1:3*(N+1)),1);
 	B(3,1:3*(N+1)) = circshift(B(2,1:3*(N+1)),1);
 
+    inter = (d3(2:end,:) + 2*d3(1:end-1,:)) / (6*Nsquared) + (X(2:end-1,:) + X(1:end-2,:))/(2*N);
+    
 	% Populate the equations for the moment balance in the d1 direction.
-	for i = 1 : N
-		i_ind = 3*(i-1) + 4; % Steps of 3, starting at 4.
-		% Let's do the f contributions as a sum, making sure we don't overwrite the entries of B - we add.
-		for j = i : N
-			% Starting index of f_j, minus 1.
-			j_ind = 3*(j-1);
-			B(i_ind,j_ind+1:j_ind+3) = B(i_ind,j_ind+1:j_ind+3) + cross(d1(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
-			% Starting index of f_{j+1}, minus 1.
-			j_ind = 3*(j+1-1);
-			B(i_ind,j_ind+1:j_ind+3) = B(i_ind,j_ind+1:j_ind+3) + cross(d1(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(3*Nsquared));
-		end
-		% Add in the tau contributions.
-		for j = i : N
-			B(i_ind,3*(N+1)+3*(j-1)+1:3*(N+1)+3*j) = d1(i,:)/N;
-		end
+    for i = 1 : N
+        i_ind = 3*(i-1) + 4; % Steps of 3, starting at 4.
+        j = i;
+        j_ind = 3*(j-1);
+        B(i_ind,j_ind+1:j_ind+3) = cross(d1(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        
+        K = [0,-d1(i,3),d1(i,2);d1(i,3),0,-d1(i,1);-d1(i,2),d1(i,1),0];
+        d = zeros(N-i,3);
+        d(:,1) = inter(i:end,1) - X(i,1)/N;
+        d(:,2) = inter(i:end,2) - X(i,2)/N;
+        d(:,3) = inter(i:end,3) - X(i,3)/N;
+        crosses = K*d';
+        B(i_ind,3*i+1:3*N) = crosses(:);
 
-	end
+        j = N+1;
+        j_ind = 3*(j-1);
+        B(i_ind,j_ind+1:j_ind+3) = cross(d1(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
 
-	% Populate the equations for the moment balance in the d2 direction.
-	for i = 1 : N
+        % Add in the tau contributions.
+        j_ind = 3*(N+1)+3*(i-1)+1;
+        for j = i : N
+            B(i_ind,j_ind) = d1(i,1)/N;
+            B(i_ind,j_ind+1) = d1(i,2)/N;
+            B(i_ind,j_ind+2) = d1(i,3)/N;
+            j_ind = j_ind + 3;
+        end
+    end
+    
+    for i = 1 : N
 		i_ind = 3*(i-1) + 5; % Steps of 3, starting at 5.
-		% Let's do the f contributions as a sum, making sure we don't overwrite the entries of B - we add.
-		for j = i : N
-			% Starting index of f_j, minus 1.
-			j_ind = 3*(j-1);
-			B(i_ind,j_ind+1:j_ind+3) = B(i_ind,j_ind+1:j_ind+3) + cross(d2(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
-			% Starting index of f_{j+1}, minus 1.
-			j_ind = 3*(j+1-1);
-			B(i_ind,j_ind+1:j_ind+3) = B(i_ind,j_ind+1:j_ind+3) + cross(d2(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(3*Nsquared));
-		end
-		% Add in the tau contributions.
-		for j = i : N
-			B(i_ind,3*(N+1)+3*(j-1)+1:3*(N+1)+3*j) = d2(i,:)/N;
-		end
-	end
+        j = i;
+        j_ind = 3*(j-1);
+        B(i_ind,j_ind+1:j_ind+3) = cross(d2(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        
+        K = [0,-d2(i,3),d2(i,2);d2(i,3),0,-d2(i,1);-d2(i,2),d2(i,1),0];
+        d = zeros(N-i,3);
+        d(:,1) = inter(i:end,1) - X(i,1)/N;
+        d(:,2) = inter(i:end,2) - X(i,2)/N;
+        d(:,3) = inter(i:end,3) - X(i,3)/N;
+        crosses = K*d';
+        B(i_ind,3*i+1:3*N) = crosses(:);
 
-	% Populate the equations for the moment balance in the d3 direction.
-	for i = 1 : N
-		i_ind = 3*(i-1) + 6; % Steps of 3, starting at 6.
-		% Let's do the f contributions as a sum, making sure we don't overwrite the entries of B - we add.
-		for j = i : N
-			% Starting index of f_j, minus 1.
-			j_ind = 3*(j-1);
-			B(i_ind,j_ind+1:j_ind+3) = B(i_ind,j_ind+1:j_ind+3) + cross(d3(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
-			% Starting index of f_{j+1}, minus 1.
-			j_ind = 3*(j+1-1);
-			B(i_ind,j_ind+1:j_ind+3) = B(i_ind,j_ind+1:j_ind+3) + cross(d3(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(3*Nsquared));
-		end
-		% Add in the tau contributions.
-		for j = i : N
-			B(i_ind,3*(N+1)+3*(j-1)+1:3*(N+1)+3*j) = d3(i,:)/N;
-		end
-	end
+        j = N+1;
+        j_ind = 3*(j-1);
+        B(i_ind,j_ind+1:j_ind+3) = cross(d2(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+
+        % Add in the tau contributions.
+        j_ind = 3*(N+1)+3*(i-1)+1;
+        for j = i : N
+            B(i_ind,j_ind) = d2(i,1)/N;
+            B(i_ind,j_ind+1) = d2(i,2)/N;
+            B(i_ind,j_ind+2) = d2(i,3)/N;
+            j_ind = j_ind + 3;
+        end
+    end
+
+    for i = 1 : N
+		i_ind = 3*(i-1) + 6; % Steps of 3, starting at 5.
+        j = i;
+        j_ind = 3*(j-1);
+        B(i_ind,j_ind+1:j_ind+3) = cross(d3(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        
+        K = [0,-d3(i,3),d3(i,2);d3(i,3),0,-d3(i,1);-d3(i,2),d3(i,1),0];
+        d = zeros(N-i,3);
+        d(:,1) = inter(i:end,1) - X(i,1)/N;
+        d(:,2) = inter(i:end,2) - X(i,2)/N;
+        d(:,3) = inter(i:end,3) - X(i,3)/N;
+        crosses = K*d';
+        B(i_ind,3*i+1:3*N) = crosses(:);
+
+        j = N+1;
+        j_ind = 3*(j-1);
+        B(i_ind,j_ind+1:j_ind+3) = cross(d3(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+
+        % Add in the tau contributions.
+        j_ind = 3*(N+1)+3*(i-1)+1;
+        for j = i : N
+            B(i_ind,j_ind) = d3(i,1)/N;
+            B(i_ind,j_ind+1) = d3(i,2)/N;
+            B(i_ind,j_ind+2) = d3(i,3)/N;
+            j_ind = j_ind + 3;
+        end
+    end
 
 	% We build the matrix Q.
 	% Begin with the blocks Q11,...,Q33.
