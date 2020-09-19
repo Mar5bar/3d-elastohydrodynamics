@@ -22,7 +22,7 @@ if nargin < 3 || isempty(flag)
     end
     % Stop the computation after some elapsed time, in seconds.
     % Should be v large for v stiff problems.
-    if (etime(clock,odeprogglobvar(2:7)) > 20000 & ishandle(95))
+    if (etime(clock,odeprogglobvar(2:7)) > 60 & ishandle(95))
         % disp('Exiting rotation due to time elapsed...')
         timeouts = timeouts + 1;
         clear init_time
