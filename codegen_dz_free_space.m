@@ -8,7 +8,10 @@
 cfg = coder.config('mex');
 cfg.GenerateReport = true;
 cfg.ReportPotentialDifferences = false;
+cfg.SaturateOnIntegerOverflow = false;
 cfg.IntegrityChecks = false;
+cfg.ResponsivenessChecks = false;
+cfg.GlobalDataSyncMethod = 'NoSync';
 
 %% Define argument types for entry-point 'dz_free_space'.
 ARGS = cell(1,1);
