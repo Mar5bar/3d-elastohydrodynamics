@@ -1,7 +1,7 @@
 function integrated_moments_director = integrated_internal_moments(t,N,d1,d2,d3)
 % Return moments integrated from s to 1, which can be specified generically.
 % Here, as an example, we prescribe sinusoidal moments in the d1 and d2
-% directions. This has been disabled by line 28, which should be removed to
+% directions. This has been disabled by line 32, which should be removed to
 % enable actively generated moments. Integrated moments are returned in the
 % local director basis.
 
