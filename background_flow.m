@@ -7,8 +7,8 @@ function ub = background_flow(x,y,z,d3,t,row_order,rot)
 	% Convert to the laboratory frame.
 	X = (transpose(rot)*[x,y,z]')';
 	u = zeros(length(x),1);
-	v = zeros(length(x),1);;
-	w = zeros(length(x),1);;
+	v = zeros(length(x),1);
+	w = zeros(length(x),1);
 
 	% Omega is the curl of the flow field.
 	omega1 = zeros(length(d3),1);
