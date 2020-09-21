@@ -1,8 +1,8 @@
-function R = dz_free_space(t,Z,EH,N,epsilon,rot)
-%% DZ_FREE_SPACE(T,Z,EH,N,EPSILON,ROT) returns the time derivative of Z for
-%	the filament given in Z, with current basis ROT. Filament aspect ratio is
-%	EPSILON, with number of segments N and elastohydrodynamic number EH. T is
-%	the current time.
+function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
+%% DZ_FREE_SPACE(T,Z,EH,N,EPSILON,ROT,CLAMPED) returns the time derivative of
+%   Z for the filament given in Z, with current basis ROT. Filament aspect
+%   ratio is EPSILON, with number of segments N and elastohydrodynamic number
+%   EH. T is the current time. Filament is clamped if CLAMPED = TRUE;
 	coder.extrinsic('integrated_internal_moments')
 	coder.extrinsic('intrinsic_curvature')
 
@@ -221,6 +221,26 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 	back = zeros(3*N+3,1);
 	back = EH*B*Ainv*background_flow(x,y,z,d3,t,row_order,rot);
 	R = R - back;
+
+    % If clamped, replace overall force and moment free conditions with
+    % dot(x)=dot(y)=dot(z)=dot(theta)=dot(phi)=dot(psi) at the base.
+    if clamped
+        lin_sys(1:6,:) = 0;
+        % dx/dt(0)
+        lin_sys(1,1) = 1;
+        % dy/dt(0)
+        lin_sys(2,2) = 1;
+        % dz/dt(0)
+        lin_sys(3,3) = 1;
+        % dtheta/dt(0)
+        lin_sys(4,4) = 1;
+        % dphi/dt(0)
+        lin_sys(5,4+N) = 1;
+        % dpsi/dt(0)
+        lin_sys(6,4+2*N) = 1;
+        % Set the RHS appropriately to 0.
+        R(1:6) = 0;
+    end
 
 	% Solve the system.
 	R = lin_sys \ R;

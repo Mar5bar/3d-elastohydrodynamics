@@ -37,6 +37,9 @@ Z(4:3+N) = pi/6; % Set the theta components.
 Z(4+N:2*N+3) = linspace(0,2*pi,N); % Set the phi components.
 Z(2*N+4:3*N+3) = 0; % Set the psi components.
 
+% Is the filament clamped at the base?
+clamped = false;
+
 % Test points for reorientation.
 phis = linspace(0,2*pi,100);
 thetas = linspace(0,pi,100);
@@ -110,8 +113,8 @@ while (T_achieved < T) % While we have not finished the simulation.
 
 %---Comment/uncomment these lines to use the compiled MEX function. See
 %     README.txt for compilation instructions.
-	dZ=@(t,z) dz_free_space(t,z,EH,N,epsilon,rot);
-	% dZ=@(t,z) dz_free_space_mex(t,z,EH,N,epsilon,rot);
+	dZ=@(t,z) dz_free_space(t,z,EH,N,epsilon,rot,clamped);
+	% dZ=@(t,z) dz_free_space_mex(t,z,EH,N,epsilon,rot,clamped);
 %---
 
 	% Evaluate the solution with ode15s, 

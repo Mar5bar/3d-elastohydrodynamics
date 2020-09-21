@@ -22,6 +22,7 @@ ARGS{1}{3} = coder.typeof(0);
 ARGS{1}{4} = coder.typeof(0);
 ARGS{1}{5} = coder.typeof(0);
 ARGS{1}{6} = coder.typeof(0,[3 3]);
+ARGS{1}{7} = coder.typeof(false);
 
 %% Invoke MATLAB Coder.
 codegen -config cfg dz_free_space -args ARGS{1}
