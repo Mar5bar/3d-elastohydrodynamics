@@ -47,15 +47,20 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
 	B(2,1:3*(N+1)) = circshift(B(1,1:3*(N+1)),1);
 	B(3,1:3*(N+1)) = circshift(B(2,1:3*(N+1)),1);
 
+    % Intermediate quantity required in constructing the remainder of B.
     inter = (d3(2:end,:) + 2*d3(1:end-1,:)) / (6*Nsquared) + (X(2:end-1,:) + X(1:end-2,:))/(2*N);
     
 	% Populate the equations for the moment balance in the d1 direction.
     for i = 1 : N
         i_ind = 3*(i-1) + 4; % Steps of 3, starting at 4.
+        
+        % Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
         B(i_ind,j_ind+1:j_ind+3) = cross(d1(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
-        
+		
+        % Contribution to f_j, j = i+1,...,N
+        % Efficiently compute cross products of d1 and inter.
         K = [0,-d1(i,3),d1(i,2);d1(i,3),0,-d1(i,1);-d1(i,2),d1(i,1),0];
         d = zeros(N-i,3);
         d(:,1) = inter(i:end,1) - X(i,1)/N;
@@ -64,6 +69,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
         crosses = K*d';
         B(i_ind,3*i+1:3*N) = crosses(:);
 
+        % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
         B(i_ind,j_ind+1:j_ind+3) = cross(d1(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
@@ -78,12 +84,17 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
         end
     end
     
+    % Populate the equations for the moment balance in the d2 direction.
     for i = 1 : N
 		i_ind = 3*(i-1) + 5; % Steps of 3, starting at 5.
+
+		% Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
         B(i_ind,j_ind+1:j_ind+3) = cross(d2(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
         
+        % Contribution to f_j, j = i+1,...,N
+        % Efficiently compute cross products of d2 and inter.
         K = [0,-d2(i,3),d2(i,2);d2(i,3),0,-d2(i,1);-d2(i,2),d2(i,1),0];
         d = zeros(N-i,3);
         d(:,1) = inter(i:end,1) - X(i,1)/N;
@@ -92,6 +103,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
         crosses = K*d';
         B(i_ind,3*i+1:3*N) = crosses(:);
 
+        % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
         B(i_ind,j_ind+1:j_ind+3) = cross(d2(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
@@ -106,12 +118,17 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
         end
     end
 
+    % Populate the equations for the moment balance in the d3 direction.
     for i = 1 : N
-		i_ind = 3*(i-1) + 6; % Steps of 3, starting at 5.
+		i_ind = 3*(i-1) + 6; % Steps of 3, starting at 6.
+
+		% Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
         B(i_ind,j_ind+1:j_ind+3) = cross(d3(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
         
+        % Contribution to f_j, j = i+1,...,N
+        % Efficiently compute cross products of d3 and inter.
         K = [0,-d3(i,3),d3(i,2);d3(i,3),0,-d3(i,1);-d3(i,2),d3(i,1),0];
         d = zeros(N-i,3);
         d(:,1) = inter(i:end,1) - X(i,1)/N;
@@ -120,6 +137,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot)
         crosses = K*d';
         B(i_ind,3*i+1:3*N) = crosses(:);
 
+        % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
         B(i_ind,j_ind+1:j_ind+3) = cross(d3(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
