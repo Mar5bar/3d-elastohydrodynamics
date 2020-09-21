@@ -210,7 +210,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 
 	% Add on the integrated contribution of any internally generated moments.
 	internal_moments = zeros(3,N);
-	internal_moments = integrated_internal_moments(t,N);
+	internal_moments = integrated_internal_moments(t,N,d1,d2,d3);
 	R(4:end) = R(4:end) - internal_moments(:);
 
 	% Form the linear system.
