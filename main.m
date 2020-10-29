@@ -26,6 +26,9 @@ delta = pi/20;
 T = 10;
 ts = linspace(0,T,1001);
 
+% Time after which to abort a simulation.
+tlim = 60;
+
 %--------------------
 % Initial conditions.
 %--------------------
@@ -105,8 +108,10 @@ while (T_achieved < T) % While we have not finished the simulation.
 	end
 
 	% Solve the system in this new coordinate system.
-	eventFunc = @(t,Z,varargin) odeabort(t,Z,varargin,N,delta); % Aborts solution if near a singularity.
-	progressFunc = @(t,y,flag,varargin) odeprog(t,y,flag,varargin); % Displays a progress bar.
+	tstart = tic;
+	% Aborts solution if near a singularity or if elapsed time is too great.
+	eventFunc = @(t,Z,varargin) odeabort(t,Z,varargin,N,delta,tstart,tlim);
+	progressFunc = @(t,y,flag,varargin) odetpbar(t,y,flag); % Displays a progress bar.
 	ode_ops = odeset('OutputFcn',progressFunc,'Events',eventFunc,'Stats','off','AbsTol',1e-5,'RelTol',1e-5);
 
 	% Setup the RHS function. Drastic speedup if using user-compiled mex function.

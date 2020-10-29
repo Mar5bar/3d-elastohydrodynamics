@@ -1,4 +1,4 @@
-function [value,isterminal,direction]=odeabort(t,Z,varargin,N,delta)
+function [value,isterminal,direction]=odeabort(t,Z,varargin,N,delta,tstart,tlim)
 % Adapted from:
 % Tim Franklin
 % Virginia Tech
@@ -6,8 +6,8 @@ function [value,isterminal,direction]=odeabort(t,Z,varargin,N,delta)
 % Wake Forrest
 % May 2006
 
-%Test to see if we've manually aborted by closing progress bar.
-value(1)=double(ishandle(95));
+% Test to see if the simulation has been running for too long.
+value(1) = toc(tstart) > tlim;
 isterminal(1) = 1;
 direction(1) = 0;
 
