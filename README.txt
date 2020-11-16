@@ -34,5 +34,6 @@ License
 
 This work is available under a CC BY 4.0 Attribution license. The authors,
 Benjamin J. Walker, Kenta Ishimoto, and Eamonn A. Gaffney, along with the
-published article "A new basis for filament simulation in three dimensions" by
-the same authors should be appropriately cited in all use.
+published article "Efficient simulation of filament elastohydrodynamics in 
+three dimensions" by the same authors, should be appropriately cited in all 
+use.
