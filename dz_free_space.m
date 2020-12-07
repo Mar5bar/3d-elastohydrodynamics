@@ -22,12 +22,31 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 	PSI = Z(2*N+4:3*N+3);
 	[d1,d2,d3] = directors(Z);
 
+    % Interpolate the directors at the segment endpoints.
+    segmentBases = zeros(3,3,N);
+    for i = 1 : N
+        segmentBases(:,:,i) = [d1(i,:)',d2(i,:)',d3(i,:)'];
+    end
+
+    % Approximate via elementwise averages, rescaling singular values to unity.
+    meanRots = zeros(3,3,N+1);
+    meanRots(:,:,1) = 1.5 * segmentBases(:,:,1) - 0.5 * segmentBases(:,:,2);
+    meanRots(:,:,2:end-1) = 0.5 * (segmentBases(:,:,1:end-1) + segmentBases(:,:,2:end));
+    meanRots(:,:,end) = 1.5 * segmentBases(:,:,end) - 0.5 * segmentBases(:,:,end-1);
+    for i = 1 : N+1
+        [U,~,V] = svd(meanRots(:,:,i));
+        meanRots(:,:,i) = U*V';
+    end
+    d1N = reshape(meanRots(:,1,:),[3,N+1])';
+    d2N = reshape(meanRots(:,2,:),[3,N+1])';
+    d3N = reshape(meanRots(:,3,:),[3,N+1])';
+
 	%------
 	% Generate each of the matrices.
 	%------
 
 	% Compute inv(A), linking the linear velocity to the forces.
-	Ainv = inv_A_rft(x,y,z,N,epsquared);
+	Ainv = inv_A_rft(d3N',N,epsquared);
 	Atilde = zeros(3*N,N);
 	for i = 1 : N
 		Atilde(3*(i-1)+1:3*i,i) = d3(i,:)';
@@ -57,11 +76,11 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
         % Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d1(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d1N(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
 		
         % Contribution to f_j, j = i+1,...,N
         % Efficiently compute cross products of d1 and inter.
-        K = [0,-d1(i,3),d1(i,2);d1(i,3),0,-d1(i,1);-d1(i,2),d1(i,1),0];
+        K = [0,-d1N(i,3),d1N(i,2);d1N(i,3),0,-d1N(i,1);-d1N(i,2),d1N(i,1),0];
         d = zeros(N-i,3);
         d(:,1) = inter(i:end,1) - X(i,1)/N;
         d(:,2) = inter(i:end,2) - X(i,2)/N;
@@ -72,14 +91,14 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
         % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d1(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d1N(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
 
         % Add in the tau contributions.
         j_ind = 3*(N+1)+3*(i-1)+1;
         for j = i : N
-            B(i_ind,j_ind) = d1(i,1)/N;
-            B(i_ind,j_ind+1) = d1(i,2)/N;
-            B(i_ind,j_ind+2) = d1(i,3)/N;
+            B(i_ind,j_ind) = d1N(i,1)/N;
+            B(i_ind,j_ind+1) = d1N(i,2)/N;
+            B(i_ind,j_ind+2) = d1N(i,3)/N;
             j_ind = j_ind + 3;
         end
     end
@@ -91,11 +110,11 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 		% Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d2(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d2N(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
         
         % Contribution to f_j, j = i+1,...,N
         % Efficiently compute cross products of d2 and inter.
-        K = [0,-d2(i,3),d2(i,2);d2(i,3),0,-d2(i,1);-d2(i,2),d2(i,1),0];
+        K = [0,-d2N(i,3),d2N(i,2);d2N(i,3),0,-d2N(i,1);-d2N(i,2),d2N(i,1),0];
         d = zeros(N-i,3);
         d(:,1) = inter(i:end,1) - X(i,1)/N;
         d(:,2) = inter(i:end,2) - X(i,2)/N;
@@ -106,14 +125,14 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
         % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d2(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d2N(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
 
         % Add in the tau contributions.
         j_ind = 3*(N+1)+3*(i-1)+1;
         for j = i : N
-            B(i_ind,j_ind) = d2(i,1)/N;
-            B(i_ind,j_ind+1) = d2(i,2)/N;
-            B(i_ind,j_ind+2) = d2(i,3)/N;
+            B(i_ind,j_ind) = d2N(i,1)/N;
+            B(i_ind,j_ind+1) = d2N(i,2)/N;
+            B(i_ind,j_ind+2) = d2N(i,3)/N;
             j_ind = j_ind + 3;
         end
     end
@@ -125,11 +144,11 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 		% Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d3(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d3N(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
         
         % Contribution to f_j, j = i+1,...,N
         % Efficiently compute cross products of d3 and inter.
-        K = [0,-d3(i,3),d3(i,2);d3(i,3),0,-d3(i,1);-d3(i,2),d3(i,1),0];
+        K = [0,-d3N(i,3),d3N(i,2);d3N(i,3),0,-d3N(i,1);-d3N(i,2),d3N(i,1),0];
         d = zeros(N-i,3);
         d(:,1) = inter(i:end,1) - X(i,1)/N;
         d(:,2) = inter(i:end,2) - X(i,2)/N;
@@ -140,14 +159,14 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
         % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d3(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d3N(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
 
         % Add in the tau contributions.
         j_ind = 3*(N+1)+3*(i-1)+1;
         for j = i : N
-            B(i_ind,j_ind) = d3(i,1)/N;
-            B(i_ind,j_ind+1) = d3(i,2)/N;
-            B(i_ind,j_ind+2) = d3(i,3)/N;
+            B(i_ind,j_ind) = d3N(i,1)/N;
+            B(i_ind,j_ind+1) = d3N(i,2)/N;
+            B(i_ind,j_ind+2) = d3N(i,3)/N;
             j_ind = j_ind + 3;
         end
     end
@@ -185,18 +204,18 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 	% Form the RHS.
 	R = zeros(3*N+3,1);
 	% 4th order central differences, 2nd order differences at ends.
-	d1ds = [-0.5*d1(3,:) + 2*d1(2,:) - 1.5*d1(1,:); 0.5*d1(3,:) - 0.5*d1(1,:); -1/12*d1(5:end,:) + 2/3*d1(4:end-1,:) - 2/3*d1(2:end-3,:) + 1/12*d1(1:end-4,:); 0.5*d1(end,:) - 0.5*d1(end-2,:); 1.5*d1(end,:) - 2*d1(end-1,:) + 0.5*d1(end-2,:)]*N;
-	d2ds = [-0.5*d2(3,:) + 2*d2(2,:) - 1.5*d2(1,:); 0.5*d2(3,:) - 0.5*d2(1,:); -1/12*d2(5:end,:) + 2/3*d2(4:end-1,:) - 2/3*d2(2:end-3,:) + 1/12*d2(1:end-4,:); 0.5*d2(end,:) - 0.5*d2(end-2,:); 1.5*d2(end,:) - 2*d2(end-1,:) + 0.5*d2(end-2,:)]*N;
-	d3ds = [-0.5*d3(3,:) + 2*d3(2,:) - 1.5*d3(1,:); 0.5*d3(3,:) - 0.5*d3(1,:); -1/12*d3(5:end,:) + 2/3*d3(4:end-1,:) - 2/3*d3(2:end-3,:) + 1/12*d3(1:end-4,:); 0.5*d3(end,:) - 0.5*d3(end-2,:); 1.5*d3(end,:) - 2*d3(end-1,:) + 0.5*d3(end-2,:)]*N;
+	d1Nds = [-0.5*d1N(3,:) + 2*d1N(2,:) - 1.5*d1N(1,:); 0.5*d1N(3,:) - 0.5*d1N(1,:); -1/12*d1N(5:end,:) + 2/3*d1N(4:end-1,:) - 2/3*d1N(2:end-3,:) + 1/12*d1N(1:end-4,:); 0.5*d1N(end,:) - 0.5*d1N(end-2,:); 1.5*d1N(end,:) - 2*d1N(end-1,:) + 0.5*d1N(end-2,:)]*N;
+	d2Nds = [-0.5*d2N(3,:) + 2*d2N(2,:) - 1.5*d2N(1,:); 0.5*d2N(3,:) - 0.5*d2N(1,:); -1/12*d2N(5:end,:) + 2/3*d2N(4:end-1,:) - 2/3*d2N(2:end-3,:) + 1/12*d2N(1:end-4,:); 0.5*d2N(end,:) - 0.5*d2N(end-2,:); 1.5*d2N(end,:) - 2*d2N(end-1,:) + 0.5*d2N(end-2,:)]*N;
+	d3Nds = [-0.5*d3N(3,:) + 2*d3N(2,:) - 1.5*d3N(1,:); 0.5*d3N(3,:) - 0.5*d3N(1,:); -1/12*d3N(5:end,:) + 2/3*d3N(4:end-1,:) - 2/3*d3N(2:end-3,:) + 1/12*d3N(1:end-4,:); 0.5*d3N(end,:) - 0.5*d3N(end-2,:); 1.5*d3N(end,:) - 2*d3N(end-1,:) + 0.5*d3N(end-2,:)]*N;
 
 	% We now compute kappa1,kappa2,kappa3 at the s_i, and subtract off the
 	% intrinsic curvature. Now, kappa represents the difference between the
 	% curvature and the intrinsic curvature, not simply the curvature.
-	intrinsic_curv = zeros(N,3);
+	intrinsic_curv = zeros(N+1,3);
 	intrinsic_curv = intrinsic_curvature(t,N);
-	kappa1 = dot(d3,d2ds,2) - intrinsic_curv(:,1);
-	kappa2 = dot(d1,d3ds,2) - intrinsic_curv(:,2);
-	kappa3 = dot(d2,d1ds,2) - intrinsic_curv(:,3);
+	kappa1 = dot(d3N,d2Nds,2) - intrinsic_curv(:,1);
+	kappa2 = dot(d1N,d3Nds,2) - intrinsic_curv(:,2);
+	kappa3 = dot(d2N,d1Nds,2) - intrinsic_curv(:,3);
 	
 	% We are assuming moment free at the base.
 	kappa1(1) = 0;
@@ -204,13 +223,13 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 	kappa3(1) = 0;
 
 	sigma = 1;
-	R(4:3:end) = kappa1;
-	R(5:3:end) = kappa2;
-	R(6:3:end) = kappa3/(1+sigma);
+	R(4:3:end) = kappa1(1:end-1);
+	R(5:3:end) = kappa2(1:end-1);
+	R(6:3:end) = kappa3(1:end-1)/(1+sigma);
 
 	% Add on the integrated contribution of any internally generated moments.
 	internal_moments = zeros(3,N);
-	internal_moments = integrated_internal_moments(t,N,d1,d2,d3);
+	internal_moments = integrated_internal_moments(t,N,d1,d2,d3,d1N,d2N,d3N);
 	R(4:end) = R(4:end) - internal_moments(:);
 
 	% Form the linear system.

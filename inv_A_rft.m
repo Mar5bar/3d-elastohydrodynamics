@@ -1,4 +1,4 @@
-function Ainv = inv_A_rft(X,Y,Z,N,epsquared)
+function Ainv = inv_A_rft(d3N,N,epsquared)
 %% INV_A_RFT will return the inverse of the matrix A, as given by RFT. This
 %	can doubtless be done in a more efficient manner, but is sufficient here.
 
@@ -12,16 +12,7 @@ function Ainv = inv_A_rft(X,Y,Z,N,epsquared)
 	I3 = eye(3);
 	for i = 1 : N+1
 		i_ind = 3*(i-1);
-		% Approximate the tangent vector.
-		switch i
-		case 1
-			eT = [X(i+1) - X(i); Y(i+1) - Y(i); Z(i+1) - Z(i)];
-		case N+1
-			eT = [X(i) - X(i-1); Y(i) - Y(i-1); Z(i) - Z(i-1)];
-		otherwise
-			eT = [X(i+1) - X(i-1); Y(i+1) - Y(i-1); Z(i+1) - Z(i-1)];
-		end
-		eT = eT / norm(eT);
+		eT = d3N(:,i);
 
 		% Generate eT*eT^T.
 		M = eT * eT';

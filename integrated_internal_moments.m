@@ -1,4 +1,4 @@
-function integrated_moments_director = integrated_internal_moments(t,N,d1,d2,d3)
+function integrated_moments_director = integrated_internal_moments(t,N,d1,d2,d3,d1N,d2N,d3N)
 % Return moments integrated from s to 1, which can be specified generically.
 % Here, as an example, we prescribe sinusoidal moments in the d1 and d2
 % directions. This has been disabled by line 32, which should be removed to
@@ -25,8 +25,8 @@ function integrated_moments_director = integrated_internal_moments(t,N,d1,d2,d3)
     % Integrate the moments from s=s_i to L.
     integrated_moments = cumsum(segment_moments,'reverse');
 
-    % Return them expressed in the local d1,d2,d3 basis at s=s_i.
-    integrated_moments_director = [dot(d1,integrated_moments,2),dot(d2,integrated_moments,2),dot(d3,integrated_moments,2)]';
+    % Return them expressed in the local d1,d2,d3 basis at nodes s=s_i.
+    integrated_moments_director = [dot(d1N(1:end-1,:),integrated_moments,2),dot(d2N(1:end-1,:),integrated_moments,2),dot(d3N(1:end-1,:),integrated_moments,2)]';
 
     % Remove this line to allow internal moments.
     integrated_moments_director(:) = 0;
