@@ -18,7 +18,7 @@ function status=odetpbar(t,y,flag)
             case 'init'     % Initializing progress bar
                 tstart=tic;
                 tf=max(t);
-                textprogressbar('ODE integration: ');
+                textprogressbar('ODE integration: ',0)
             case 'done'     % Finishing status function
                 tf=[];
                 textprogressbar('');

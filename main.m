@@ -1,9 +1,14 @@
-try close(95)
-catch exception
-end
 %---------------
 % Filament setup.
 %---------------
+
+% Use local parameterisations.
+new_method_flag = true
+if new_method_flag
+    disp('Using local parameterisations')
+else
+    disp('Using a global parameterisation')
+end
 
 global timeouts
 
@@ -17,7 +22,11 @@ EH = 150000;
 epsilon = 0.01;
 
 % Threshold for THETA values being too close to 0,pi.
-delta = pi/20;
+if new_method_flag
+	delta = pi/4;
+else
+	delta = pi/20;
+end
 
 %---------------
 % Time settings.
@@ -25,6 +34,12 @@ delta = pi/20;
 % T is the end time of the simulation.
 T = 10;
 ts = linspace(0,T,1001);
+
+% Matrices for saving results.
+d1s = zeros(3,N,length(ts));
+d2s = zeros(3,N,length(ts));
+d3s = zeros(3,N,length(ts));
+X = zeros(3,N+1,length(ts));
 
 % Time after which to abort a simulation.
 tlim = 60;
@@ -39,87 +54,89 @@ Z = zeros(3*N+3,1);
 Z(4:3+N) = pi/6; % Set the theta components.
 Z(4+N:2*N+3) = linspace(0,2*pi,N); % Set the phi components.
 Z(2*N+4:3*N+3) = 0; % Set the psi components.
+% These are specified wrt Euler angles in the lab frame!
+
+% Generate the current directors from the parameterisation. We make use of the
+% directors_DLocal function only here, as the initial shape is given in lab
+% frame Euler angles, yielding d1,d2,d3 rather than D1,D2,D3 as usual.
+[d1,d2,d3] = directors_DLocal(Z);
 
 % Is the filament clamped at the base?
 clamped = false;
-
-% Test points for reorientation.
-phis = linspace(0,2*pi,100);
-thetas = linspace(0,pi,100);
-[thetas, phis] = meshgrid(thetas, phis);
-thetas = thetas(:); phis = phis(:);
-v1s = sin(thetas).*cos(phis);
-v2s = sin(thetas).*sin(phis);
-v3s = cos(thetas);
 
 tic
 % We will loop through, checking that THETA never gets within delta of 0 or pi.
 % If it does, we will select a new basis.
 T_achieved = 0;
-rot = eye(3); % Initial basis.
-% Generate the spatial coordinates.
-[x,y,z,PSI] = spatial_coords(Z);
-X = zeros(N+1,3,length(ts));
-X(:,:,1) = [x,y,z];
-last_X = X(:,:,1);
-last_Z = Z;
-D1 = zeros(N,3,length(ts));
-D2 = zeros(N,3,length(ts));
-D3 = zeros(N,3,length(ts));
-[D1(:,:,1),D2(:,:,1),D3(:,:,1)] = directors(last_Z);
-current_time_ind = 1;
-% This will enable an initial reorientation, usually a good idea.
-flag = true;
+current_time_ind = 0;
 
-det_counter = 0;
+% Create the matrix in which the local rotation for parameterisation will be
+% stored.
+Rs = zeros(3, 3, N);
+I = eye(3);
+
+if ~new_method_flag
+    % OLD METHOD------
+    % Test points for reorientation.
+    phis = linspace(0,2*pi,100);
+    thetas = linspace(0,pi,100);
+    [thetas, phis] = meshgrid(thetas, phis);
+    thetas = thetas(:); phis = phis(:);
+    v1s = sin(thetas).*cos(phis);
+    v2s = sin(thetas).*sin(phis);
+    v3s = cos(thetas);
+end
+
+rot_counter = 0;
 timeouts = 0;
 while (T_achieved < T) % While we have not finished the simulation.
-	
-	% Get the current directors.
-	[d1,d2,d3] = directors(last_Z);
-
-	Z = last_Z;
-
-	% We check to see if THETA is too small/large:
-	if (min(pi-Z(4:N+3)) < delta || min(Z(4:N+3)) < delta || flag)
-		det_counter = det_counter + 1;
-		% Find the test point which is furthest on the sphere from (theta,phi).
-		% The locations on the sphere are conveniently given by d3.
-		x = [d3(:,1);-d3(:,1)]; y = [d3(:,2);-d3(:,2)]; z = [d3(:,3);-d3(:,3)];
-		d = (x-v1s').^2 + (y-v2s').^2 + (z-v3s').^2;
+    
+	rot_counter = rot_counter + 1;
+    if new_method_flag
+        % For each segment, compute a rotation matrix R that takes d3 to [1,0,0]^T.
+        axs = d3 + [1;0;0]; axs = axs ./ sqrt(sum(axs.^2, 1));
+        for i = 1 : N
+            v = axs(:,i);
+            K = [0,-v(3),v(2);v(3),0,-v(1);-v(2),v(1),0];
+            Rs(:,:,i) = I + 2 * K^2;
+        end
+    else
+        %     OLD METHOD FOR COMPARISON
+        % Find the test point which is furthest on the sphere from (theta,phi).
+        % The locations on the sphere are conveniently given by d3.
+        x = [d3(:,1);-d3(:,1)]; y = [d3(:,2);-d3(:,2)]; z = [d3(:,3);-d3(:,3)];
+        d = (x-v1s').^2 + (y-v2s').^2 + (z-v3s').^2;
         [~,ind] = max(min(d,[],1));
-		theta = thetas(ind);
-		phi = phis(ind);
-		v = [v1s(ind), v2s(ind), v3s(ind)];
-		v = mean([v;0,0,1]); v = v / norm(v);
-		% Rotate via Rodrigue's rotation formula.
-		K = [0,-v(3),v(2);v(3),0,-v(1);-v(2),v(1),0];
-		rot = eye(3) + 2 * K^2;
+        theta = thetas(ind);
+        phi = phis(ind);
+        v = [v1s(ind), v2s(ind), v3s(ind)];
+        v = mean([v;0,0,1]); v = v / norm(v);
+        % Rotate via Rodrigue's rotation formula.
+        K = [0,-v(3),v(2);v(3),0,-v(1);-v(2),v(1),0];
+        rot = eye(3) + 2 * K^2;
+        for i = 1 : N
+            Rs(:,:,i) = rot;
+        end
+    end
 
-		% Rotate the spatial coordinates to the new basis - we are changing basis.
-		new_X = (rot*last_X')'; % Note transposes are for MATLAB multiplication, not maths ops.
-		% Transform the directors to the new basis.
-		new_d1 = (rot*d1')'; new_d2 = (rot*d2')'; new_d3 = (rot*d3')';
-		% We compute the angle parameterisation with respect to this new basis.
-		Z = [new_X(1,:)';euler_angles(new_d1,new_d2,new_d3)];
-		flag = false;
-	else
-		rot = eye(3);
-	end
+	% Let's rotate the directors to give D1, D2, D3, and compute the resulting
+	% parameterisaton.
+	[D1,D2,D3] = DLocal_from_dLab(d1,d2,d3,Rs);
+	Z = [Z(1:3); euler_angles(D1,D2,D3)];
 
-	% Solve the system in this new coordinate system.
+	% Solve the system in Z.
 	tstart = tic;
 	% Aborts solution if near a singularity or if elapsed time is too great.
 	eventFunc = @(t,Z,varargin) odeabort(t,Z,varargin,N,delta,tstart,tlim);
 	progressFunc = @(t,y,flag,varargin) odetpbar(t,y,flag); % Displays a progress bar.
-	ode_ops = odeset('OutputFcn',progressFunc,'Events',eventFunc,'Stats','off','AbsTol',1e-5,'RelTol',1e-5);
+	ode_ops = odeset('OutputFcn',progressFunc,'Events',eventFunc,'Stats','off','AbsTol',1e-5,'RelTol',1e-4);
 
 	% Setup the RHS function. Drastic speedup if using user-compiled mex function.
 
 %---Comment/uncomment these lines to use the compiled MEX function. See
 %     README.txt for compilation instructions.
-	dZ=@(t,z) dz_free_space(t,z,EH,N,epsilon,rot,clamped);
-	% dZ=@(t,z) dz_free_space_mex(t,z,EH,N,epsilon,rot,clamped);
+	dZ=@(t,z) dz_free_space(t,z,EH,N,epsilon,Rs,clamped);
+	% dZ=@(t,z) dz_free_space_mex(t,z,EH,N,epsilon,Rs,clamped);
 %---
 
 	% Evaluate the solution with ode15s, 
@@ -128,13 +145,10 @@ while (T_achieved < T) % While we have not finished the simulation.
 	% We now compute the solution at the timepoints requested, retaining Z as returned by the solver.
 	T_achieved = sol.x(end);
 	% We generate the spatial coordinates of the exact last step taken by the solver.
-	% We need to convert these to the original basis, so multiply by inv(rot)=transpose(rot).
-	Z = sol.y(:,end);
-	[d1,d2,d3] = directors(Z);
-	[x,y,z] = spatial_coords(Z);
-	last_X = (transpose(rot)*[x,y,z]')'; % Note ' transposes are for MATLAB multiplication, not maths ops.
-	original_d1 = (transpose(rot)*d1')'; original_d2 = (transpose(rot)*d2')'; original_d3 = (transpose(rot)*d3')'; 
-	last_Z = [last_X(1,:)';euler_angles(original_d1,original_d2,original_d3)];
+	last_Z = sol.y(:,end);
+	[last_D1,last_D2,last_D3] = directors_DLocal(last_Z);
+	[last_d1,last_d2,last_d3] = dLab_from_DLocal(last_D1,last_D2,last_D3,Rs);
+	last_positions = [last_Z(1:3), cumsum(d3,2)/N + last_Z(1:3)];
 
 	% We use sol.y to evaluate the solution at the timepoints in ts.
 	% This will prune the ts such that we are only getting timepoints that we need.
@@ -146,14 +160,20 @@ while (T_achieved < T) % While we have not finished the simulation.
     if ~isempty(valid_ts)
 		Z_at_ts = deval(sol,valid_ts);
 		for i = 1 : length(valid_ts)
-			[x,y,z,PSI] = spatial_coords(Z_at_ts(:,i));
-			X(:,:,current_time_ind+i) = (transpose(rot)*[x,y,z]')';
-			[d1,d2,d3] = directors(Z_at_ts(:,i));
-			D1(:,:,current_time_ind+i) = (transpose(rot)*d1')';
-			D2(:,:,current_time_ind+i) = (transpose(rot)*d2')';
-			D3(:,:,current_time_ind+i) = (transpose(rot)*d3')';
+			[D1,D2,D3] = directors_DLocal(Z_at_ts(:,i));
+			[d1,d2,d3] = dLab_from_DLocal(D1,D2,D3,Rs);
+			d1s(:,:,current_time_ind+i) = d1;
+			d2s(:,:,current_time_ind+i) = d2;
+			d3s(:,:,current_time_ind+i) = d3;
+			X(:,:,current_time_ind+i) = spatial_coords(Z_at_ts(1:3,i),d3);
 		end
 	end
+
+	% Prepare for the selection of new Rs and the next ODE solve.
+	Z = last_Z;
+	d1 = last_d1;
+	d2 = last_d2;
+	d3 = last_d3;
 
 	% Update the current time ind.
 	current_time_ind = find(ts<=T_achieved,1,'last');
@@ -161,6 +181,6 @@ end
 
 toc
 
-disp(['Number of deterministic rotations performed: ',num2str(det_counter),'.'])
+disp(['Number of times local rotations computed: ',num2str(rot_counter),'.'])
 disp(['Number of timeouts: ',num2str(timeouts),'.'])
 plot_ans(X,ts,10)

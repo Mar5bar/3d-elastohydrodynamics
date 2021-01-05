@@ -20,7 +20,7 @@ for i = start : skip : min(stop,length(ts))
     end
     try delete(h1)
     end
-    h1 = plot3(X(:,1,i),X(:,2,i),X(:,3,i),'black','LineWidth',2);
+    h1 = plot3(X(1,:,i),X(2,:,i),X(3,:,i),'black','LineWidth',2);
     axis equal
     grid on
     title(['T = ',num2str(ts(i))]);

@@ -1,31 +1,32 @@
-function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
-%% DZ_FREE_SPACE(T,Z,EH,N,EPSILON,ROT,CLAMPED) returns the time derivative of
-%   Z for the filament given in Z, with current basis ROT. Filament aspect
-%   ratio is EPSILON, with number of segments N and elastohydrodynamic number
-%   EH. T is the current time. Filament is clamped if CLAMPED = TRUE;
+function R = dz_free_space(t,Z,EH,N,epsilon,Rs,clamped)
+%% DZ_FREE_SPACE(T,Z,EH,N,EPSILON,Rs,CLAMPED) returns the time derivative of Z
+%   for the filament given in Z, with current local rotations Rs. Filament
+%   aspect ratio is EPSILON, with number of segments N and elastohydrodynamic
+%   number EH. T is the current time. Filament is clamped if CLAMPED = TRUE;
 	coder.extrinsic('integrated_internal_moments')
 	coder.extrinsic('intrinsic_curvature')
+    coder.extrinsic('pagemtimes')
+    coder.extrinsic('dLab_from_DLocal')
 
 	epsquared = epsilon^2;
 	Nsquared = N^2;
 
-	% Generate the spatial coordinates from the vector Z.
-	[x,y,z,~] = spatial_coords_serial(Z);
-	% X will store these conveniently.
-	X = [x,y,z];
+    % Generate the directors di.
+    [D1, D2, D3] = directors_DLocal(Z);
+    d1 = zeros(3,N);
+    d2 = zeros(3,N);
+    d3 = zeros(3,N);
+    [d1, d2, d3] = dLab_from_DLocal(D1, D2, D3, Rs);
+    X = spatial_coords_serial(Z(1:3), d3);
 
-	% We are going to need the directors d1, d2, d3, so we form these from
-	% theta, phi. Note the directors here are those on each segment. Pointwise
-	% evaluation at nodes will follow.
-	THETA = Z(4:3+N);
-	PHI = Z(4+N:2*N+3);
-	PSI = Z(2*N+4:3*N+3);
-	[d1,d2,d3] = directors(Z);
+    % We will need the local theta and phi values later.
+	THETA = Z(4:3+N)';
+    PHI = Z(4+N:2*N+3)';
 
     % Interpolate the directors at the segment endpoints.
     segmentBases = zeros(3,3,N);
     for i = 1 : N
-        segmentBases(:,:,i) = [d1(i,:)',d2(i,:)',d3(i,:)'];
+        segmentBases(:,:,i) = [d1(:,i),d2(:,i),d3(:,i)];
     end
 
     % Approximate via elementwise averages, rescaling singular values to unity.
@@ -37,19 +38,19 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
         [U,~,V] = svd(meanRots(:,:,i));
         meanRots(:,:,i) = U*V';
     end
-    d1N = reshape(meanRots(:,1,:),[3,N+1])';
-    d2N = reshape(meanRots(:,2,:),[3,N+1])';
-    d3N = reshape(meanRots(:,3,:),[3,N+1])';
+    d1N = reshape(meanRots(:,1,:),[3,N+1]);
+    d2N = reshape(meanRots(:,2,:),[3,N+1]);
+    d3N = reshape(meanRots(:,3,:),[3,N+1]);
 
 	%------
 	% Generate each of the matrices.
 	%------
 
 	% Compute inv(A), linking the linear velocity to the forces.
-	Ainv = inv_A_rft(d3N',N,epsquared);
+	Ainv = inv_A_rft(d3N,N,epsquared);
 	Atilde = zeros(3*N,N);
 	for i = 1 : N
-		Atilde(3*(i-1)+1:3*i,i) = d3(i,:)';
+		Atilde(3*(i-1)+1:3*i,i) = d3(:,i);
 	end
 	% We need to add in the rotation of the filament, in terms of the local
 	% rate of rotation. Note we have nondimensionalised by 8*pi*mu, hence the
@@ -67,7 +68,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 	B(3,1:3*(N+1)) = circshift(B(2,1:3*(N+1)),1);
 
     % Intermediate quantity required in constructing the remainder of B.
-    inter = (d3(2:end,:) + 2*d3(1:end-1,:)) / (6*Nsquared) + (X(2:end-1,:) + X(1:end-2,:))/(2*N);
+    inter = (d3(:,2:end) + 2*d3(:,1:end-1)) / (6*Nsquared) + (X(:,2:end-1) + X(:,1:end-2))/(2*N);
     
 	% Populate the equations for the moment balance in the d1 direction.
     for i = 1 : N
@@ -76,29 +77,29 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
         % Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d1N(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d1N(:,i),(X(:,j) - X(:,i))/(2*N) + d3(:,j)/(6*Nsquared));
 		
         % Contribution to f_j, j = i+1,...,N
         % Efficiently compute cross products of d1 and inter.
-        K = [0,-d1N(i,3),d1N(i,2);d1N(i,3),0,-d1N(i,1);-d1N(i,2),d1N(i,1),0];
+        K = [0,-d1N(3,i),d1N(2,i);d1N(3,i),0,-d1N(1,i);-d1N(2,i),d1N(1,i),0];
         d = zeros(N-i,3);
-        d(:,1) = inter(i:end,1) - X(i,1)/N;
-        d(:,2) = inter(i:end,2) - X(i,2)/N;
-        d(:,3) = inter(i:end,3) - X(i,3)/N;
+        d(:,1) = inter(1,i:end) - X(1,i)/N;
+        d(:,2) = inter(2,i:end) - X(2,i)/N;
+        d(:,3) = inter(3,i:end) - X(3,i)/N;
         crosses = K*d';
         B(i_ind,3*i+1:3*N) = crosses(:);
 
         % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d1N(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d1N(:,i),(X(:,j-1) - X(:,i))/(2*N) + d3(:,j-1)/(3*Nsquared));
 
         % Add in the tau contributions.
         j_ind = 3*(N+1)+3*(i-1)+1;
         for j = i : N
-            B(i_ind,j_ind) = d1N(i,1)/N;
-            B(i_ind,j_ind+1) = d1N(i,2)/N;
-            B(i_ind,j_ind+2) = d1N(i,3)/N;
+            B(i_ind,j_ind) = d1N(1,i)/N;
+            B(i_ind,j_ind+1) = d1N(2,i)/N;
+            B(i_ind,j_ind+2) = d1N(3,i)/N;
             j_ind = j_ind + 3;
         end
     end
@@ -110,29 +111,29 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 		% Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d2N(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d2N(:,i),(X(:,j) - X(:,i))/(2*N) + d3(:,j)/(6*Nsquared));
         
         % Contribution to f_j, j = i+1,...,N
         % Efficiently compute cross products of d2 and inter.
-        K = [0,-d2N(i,3),d2N(i,2);d2N(i,3),0,-d2N(i,1);-d2N(i,2),d2N(i,1),0];
+        K = [0,-d2N(3,i),d2N(2,i);d2N(3,i),0,-d2N(1,i);-d2N(2,i),d2N(1,i),0];
         d = zeros(N-i,3);
-        d(:,1) = inter(i:end,1) - X(i,1)/N;
-        d(:,2) = inter(i:end,2) - X(i,2)/N;
-        d(:,3) = inter(i:end,3) - X(i,3)/N;
+        d(:,1) = inter(1,i:end) - X(1,i)/N;
+        d(:,2) = inter(2,i:end) - X(2,i)/N;
+        d(:,3) = inter(3,i:end) - X(3,i)/N;
         crosses = K*d';
         B(i_ind,3*i+1:3*N) = crosses(:);
 
         % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d2N(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d2N(:,i),(X(:,j-1) - X(:,i))/(2*N) + d3(:,j-1)/(3*Nsquared));
 
         % Add in the tau contributions.
         j_ind = 3*(N+1)+3*(i-1)+1;
         for j = i : N
-            B(i_ind,j_ind) = d2N(i,1)/N;
-            B(i_ind,j_ind+1) = d2N(i,2)/N;
-            B(i_ind,j_ind+2) = d2N(i,3)/N;
+            B(i_ind,j_ind) = d2N(1,i)/N;
+            B(i_ind,j_ind+1) = d2N(2,i)/N;
+            B(i_ind,j_ind+2) = d2N(3,i)/N;
             j_ind = j_ind + 3;
         end
     end
@@ -144,58 +145,74 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 		% Contribution to f_i.
         j = i;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d3N(i,:),(X(j,:) - X(i,:))/(2*N) + d3(j,:)/(6*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d3N(:,i),(X(:,j) - X(:,i))/(2*N) + d3(:,j)/(6*Nsquared));
         
         % Contribution to f_j, j = i+1,...,N
         % Efficiently compute cross products of d3 and inter.
-        K = [0,-d3N(i,3),d3N(i,2);d3N(i,3),0,-d3N(i,1);-d3N(i,2),d3N(i,1),0];
+        K = [0,-d3N(3,i),d3N(2,i);d3N(3,i),0,-d3N(1,i);-d3N(2,i),d3N(1,i),0];
         d = zeros(N-i,3);
-        d(:,1) = inter(i:end,1) - X(i,1)/N;
-        d(:,2) = inter(i:end,2) - X(i,2)/N;
-        d(:,3) = inter(i:end,3) - X(i,3)/N;
+        d(:,1) = inter(1,i:end) - X(1,i)/N;
+        d(:,2) = inter(2,i:end) - X(2,i)/N;
+        d(:,3) = inter(3,i:end) - X(3,i)/N;
         crosses = K*d';
         B(i_ind,3*i+1:3*N) = crosses(:);
 
         % Contribution to f_{N+1}.
         j = N+1;
         j_ind = 3*(j-1);
-        B(i_ind,j_ind+1:j_ind+3) = cross(d3N(i,:),(X(j-1,:) - X(i,:))/(2*N) + d3(j-1,:)/(3*Nsquared));
+        B(i_ind,j_ind+1:j_ind+3) = cross(d3N(:,i),(X(:,j-1) - X(:,i))/(2*N) + d3(:,j-1)/(3*Nsquared));
 
         % Add in the tau contributions.
         j_ind = 3*(N+1)+3*(i-1)+1;
         for j = i : N
-            B(i_ind,j_ind) = d3N(i,1)/N;
-            B(i_ind,j_ind+1) = d3N(i,2)/N;
-            B(i_ind,j_ind+2) = d3N(i,3)/N;
+            B(i_ind,j_ind) = d3N(1,i)/N;
+            B(i_ind,j_ind+1) = d3N(2,i)/N;
+            B(i_ind,j_ind+2) = d3N(3,i)/N;
             j_ind = j_ind + 3;
         end
     end
 
-	% We build the matrix Q.
-	% Begin with the blocks Q11,...,Q33.
+	%% We build the matrix Q.
+
+	% Begin with the dot(X) rows.
 	Q = zeros(3*(N+1),2*N+3);
-	% These are blocks Qk1.
-	Q(1:N+1,1) = 1;
-	Q((N+1)+1:2*(N+1),2) = 1;
-	Q(2*(N+1)+1:3*(N+1),3) = 1;
+    % Fill in the dot(X1) dependence.
+    Q(1:3:end,1) = 1;
+    Q(2:3:end,2) = 1;
+    Q(3:3:end,3) = 1;
 
-	% We build the submatrices.
-	Q12 = zeros(N+1,N); Q13 = zeros(N+1,N); Q22 = zeros(N+1,N); Q23 = zeros(N+1,N); Q32 = zeros(N+1,N); Q33 = zeros(N+1,N);
-	for j = 1 : N
-		Q12(j+1:end,j) =   cos(THETA(j))*cos(PHI(j));
-		Q13(j+1:end,j) = - sin(THETA(j))*sin(PHI(j));
-		Q22(j+1:end,j) =   cos(THETA(j))*sin(PHI(j));
-		Q23(j+1:end,j) =   sin(THETA(j))*cos(PHI(j));
-		Q32(j+1:end,j) = - sin(THETA(j));
-		% Q33 = 0 identically.
-	end
-	Q(:,4:end) = [Q12, Q13; Q22, Q23; Q32, Q33] / N;
+    %% Compute intermediate products of the RTs and rate of change vectors.
+    theta_comp = [cos(THETA).*cos(PHI); cos(THETA).*sin(PHI); -sin(THETA)];
+    phi_comp = [-sin(THETA).*sin(PHI); sin(THETA).*cos(PHI); 0*THETA];
+    % Reshape the theta_comp and phi_comp so that multiplication by RTs can be
+    % done efficiently using pagemtimes.
+    theta_comp = reshape(theta_comp,[3,1,N]);
+    phi_comp = reshape(phi_comp,[3,1,N]);
 
-	row_order = zeros(3*(N+1),1);
-	for j = 1 : N + 1
-		row_order(3*(j-1)+1:3*j) = [j,N+1+j,2*N+2+j];
-	end
-	Q = Q(row_order,:);
+    % Multiply the ith vectors by RTi, the transposed rotation matrix for the ith segment.
+    theta_comp = pagemtimes(Rs,'transpose',theta_comp,'none'); theta_comp = reshape(theta_comp,[3,N]);
+    phi_comp = pagemtimes(Rs,'transpose',phi_comp,'none'); phi_comp = reshape(phi_comp,[3,N]);
+
+    % Rescale by 1/N.
+    theta_comp = theta_comp / N;
+    phi_comp = phi_comp / N;
+
+    % Assign theta_comp to Q.
+    % Loop over columns.
+    for j = 1 : N
+        Q(3*j + 1 : 3 : end , 3 + j) = theta_comp(1,j);
+        Q(3*j + 2 : 3 : end , 3 + j) = theta_comp(2,j);
+        Q(3*j + 3 : 3 : end , 3 + j) = theta_comp(3,j);
+    end
+
+    % Assign phi_comp to Q.
+    % Loop over columns.
+    for j = 1 : N
+        Q(3*j + 1 : 3 : end , 3 + N + j) = phi_comp(1,j);
+        Q(3*j + 2 : 3 : end , 3 + N + j) = phi_comp(2,j);
+        Q(3*j + 3 : 3 : end , 3 + N + j) = phi_comp(3,j);
+    end
+
 	% Extend to include psi, which requires no transformation.
 	Q = blkdiag(Q,eye(N));
 	% We also need cos(THETA)*dPHI/dt. This is the block C.
@@ -204,28 +221,28 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 	% Form the RHS.
 	R = zeros(3*N+3,1);
 	% 4th order central differences, 2nd order differences at ends.
-	d1Nds = [-0.5*d1N(3,:) + 2*d1N(2,:) - 1.5*d1N(1,:); 0.5*d1N(3,:) - 0.5*d1N(1,:); -1/12*d1N(5:end,:) + 2/3*d1N(4:end-1,:) - 2/3*d1N(2:end-3,:) + 1/12*d1N(1:end-4,:); 0.5*d1N(end,:) - 0.5*d1N(end-2,:); 1.5*d1N(end,:) - 2*d1N(end-1,:) + 0.5*d1N(end-2,:)]*N;
-	d2Nds = [-0.5*d2N(3,:) + 2*d2N(2,:) - 1.5*d2N(1,:); 0.5*d2N(3,:) - 0.5*d2N(1,:); -1/12*d2N(5:end,:) + 2/3*d2N(4:end-1,:) - 2/3*d2N(2:end-3,:) + 1/12*d2N(1:end-4,:); 0.5*d2N(end,:) - 0.5*d2N(end-2,:); 1.5*d2N(end,:) - 2*d2N(end-1,:) + 0.5*d2N(end-2,:)]*N;
-	d3Nds = [-0.5*d3N(3,:) + 2*d3N(2,:) - 1.5*d3N(1,:); 0.5*d3N(3,:) - 0.5*d3N(1,:); -1/12*d3N(5:end,:) + 2/3*d3N(4:end-1,:) - 2/3*d3N(2:end-3,:) + 1/12*d3N(1:end-4,:); 0.5*d3N(end,:) - 0.5*d3N(end-2,:); 1.5*d3N(end,:) - 2*d3N(end-1,:) + 0.5*d3N(end-2,:)]*N;
+    d1Nds = [-0.5*d1N(:,3) + 2*d1N(:,2) - 1.5*d1N(:,1), 0.5*d1N(:,3) - 0.5*d1N(:,1), -1/12*d1N(:,5:end) + 2/3*d1N(:,4:end-1) - 2/3*d1N(:,2:end-3) + 1/12*d1N(:,1:end-4), 0.5*d1N(:,end) - 0.5*d1N(:,end-2), 1.5*d1N(:,end) - 2*d1N(:,end-1) + 0.5*d1N(:,end-2)]*N;
+    d2Nds = [-0.5*d2N(:,3) + 2*d2N(:,2) - 1.5*d2N(:,1), 0.5*d2N(:,3) - 0.5*d2N(:,1), -1/12*d2N(:,5:end) + 2/3*d2N(:,4:end-1) - 2/3*d2N(:,2:end-3) + 1/12*d2N(:,1:end-4), 0.5*d2N(:,end) - 0.5*d2N(:,end-2), 1.5*d2N(:,end) - 2*d2N(:,end-1) + 0.5*d2N(:,end-2)]*N;
+    d3Nds = [-0.5*d3N(:,3) + 2*d3N(:,2) - 1.5*d3N(:,1), 0.5*d3N(:,3) - 0.5*d3N(:,1), -1/12*d3N(:,5:end) + 2/3*d3N(:,4:end-1) - 2/3*d3N(:,2:end-3) + 1/12*d3N(:,1:end-4), 0.5*d3N(:,end) - 0.5*d3N(:,end-2), 1.5*d3N(:,end) - 2*d3N(:,end-1) + 0.5*d3N(:,end-2)]*N;
 
-	% We now compute kappa1,kappa2,kappa3 at the s_i, and subtract off the
-	% intrinsic curvature. Now, kappa represents the difference between the
-	% curvature and the intrinsic curvature, not simply the curvature.
-	intrinsic_curv = zeros(N+1,3);
-	intrinsic_curv = intrinsic_curvature(t,N);
-	kappa1 = dot(d3N,d2Nds,2) - intrinsic_curv(:,1);
-	kappa2 = dot(d1N,d3Nds,2) - intrinsic_curv(:,2);
-	kappa3 = dot(d2N,d1Nds,2) - intrinsic_curv(:,3);
-	
-	% We are assuming moment free at the base.
-	kappa1(1) = 0;
-	kappa2(1) = 0;
-	kappa3(1) = 0;
+    % We now compute kappa1,kappa2,kappa3 at the s_i, and subtract off the
+    % intrinsic curvature. Now, kappa represents the difference between the
+    % curvature and the intrinsic curvature, not simply the curvature.
+    intrinsic_curv = zeros(N+1,3);
+    intrinsic_curv = intrinsic_curvature(t,N);
+    kappa1 = dot(d3N,d2Nds)' - intrinsic_curv(:,1);
+    kappa2 = dot(d1N,d3Nds)' - intrinsic_curv(:,2);
+    kappa3 = dot(d2N,d1Nds)' - intrinsic_curv(:,3);
+    
+    % We are assuming moment free at the base.
+    kappa1(1) = 0;
+    kappa2(1) = 0;
+    kappa3(1) = 0;
 
-	sigma = 1;
-	R(4:3:end) = kappa1(1:end-1);
-	R(5:3:end) = kappa2(1:end-1);
-	R(6:3:end) = kappa3(1:end-1)/(1+sigma);
+    sigma = 1;
+    R(4:3:end) = kappa1(1:end-1);
+    R(5:3:end) = kappa2(1:end-1);
+    R(6:3:end) = kappa3(1:end-1)/(1+sigma);
 
 	% Add on the integrated contribution of any internally generated moments.
 	internal_moments = zeros(3,N);
@@ -238,7 +255,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 	% Add on the background flow contribution, noting that the flow needs to
 	% be cast in the current basis.
 	back = zeros(3*N+3,1);
-	back = EH*B*Ainv*background_flow(x,y,z,d3,t,row_order,rot);
+	back = EH*B*Ainv*background_flow(X,d3,t);
 	R = R - back;
 
     % If clamped, replace overall force and moment free conditions with
