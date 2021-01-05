@@ -134,7 +134,7 @@ while (T_achieved < T) % While we have not finished the simulation.
 
     % Now that we have the D and parameterisation, compute d/dt(D3) initially
     % to inform a better choice of R.
-    if new_method_flag
+    if new_method_flag & reorient_velocities_flag
         %---Comment/uncomment these lines to use the compiled MEX function. See
         %     README.txt for compilation instructions.
         dZ_init = dz_free_space(T_achieved,Z,EH,N,epsilon,Rs,clamped);
