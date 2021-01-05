@@ -11,5 +11,5 @@ function curv = intrinsic_curvature(t,N)
 	% Package the output.
 	curv = [d1_comp, d2_comp, d3_comp];
 	% Remove this line to include the example intrinsic curvature.
-	% curv = 0 * curv;
+	curv = 0 * curv;
 end
