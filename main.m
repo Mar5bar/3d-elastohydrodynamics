@@ -3,12 +3,20 @@
 %---------------
 
 % Use local parameterisations.
-new_method_flag = true
+new_method_flag = true;
+% Reorient velocities of D3 to prolong time away from poles.
+reorient_velocities_flag = true;
 if new_method_flag
     disp('Using local parameterisations')
+    if reorient_velocities_flag
+        disp('Reorienting velocities')
+    else
+        disp('Not reorienting velocities')
+    end
 else
     disp('Using a global parameterisation')
 end
+
 
 global timeouts
 
@@ -123,6 +131,28 @@ while (T_achieved < T) % While we have not finished the simulation.
 	% parameterisaton.
 	[D1,D2,D3] = DLocal_from_dLab(d1,d2,d3,Rs);
 	Z = [Z(1:3); euler_angles(D1,D2,D3)];
+
+    % Now that we have the D and parameterisation, compute d/dt(D3) initially
+    % to inform a better choice of R.
+    if new_method_flag
+        %---Comment/uncomment these lines to use the compiled MEX function. See
+        %     README.txt for compilation instructions.
+        dZ_init = dz_free_space(T_achieved,Z,EH,N,epsilon,Rs,clamped);
+        % dZ_init = dz_free_space_mex(T_achieved,Z,EH,N,epsilon,Rs,clamped);
+        %---
+        THETA = Z(4:3+N)'; dTHETA = dZ_init(4:3+N)';
+        PHI = Z(4+N:2*N+3)'; dPHI = dZ_init(4+N:2*N+3)';
+        dD3dt = [cos(THETA).*cos(PHI); cos(THETA).*sin(PHI); -sin(THETA)] .* dTHETA + ...
+                [-sin(THETA).*sin(PHI); sin(THETA).*cos(PHI); 0*THETA] .* dPHI;
+        alphas = -atan2(dD3dt(3,:), dD3dt(2,:));
+        Rv = @(alpha) [1,0,0;0,cos(alpha),-sin(alpha);0,sin(alpha),cos(alpha)];
+        for i = 1 : N
+            Rs(:,:,i) = Rv(alphas(i))*Rs(:,:,i);
+        end
+        % Now reparameterise using the new Rs.
+        [D1,D2,D3] = DLocal_from_dLab(d1,d2,d3,Rs);
+        Z = [Z(1:3); euler_angles(D1,D2,D3)];
+    end
 
 	% Solve the system in Z.
 	tstart = tic;
