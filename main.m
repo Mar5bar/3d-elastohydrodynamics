@@ -3,10 +3,10 @@
 %---------------
 
 % Use local parameterisations.
-new_method_flag = true;
+local_params_flag = true;
 % Reorient velocities of D3 to prolong time away from poles.
 reorient_velocities_flag = true;
-if new_method_flag
+if local_params_flag
     disp('Using local parameterisations')
     if reorient_velocities_flag
         disp('Reorienting velocities')
@@ -30,7 +30,7 @@ EH = 150000;
 epsilon = 0.01;
 
 % Threshold for THETA values being too close to 0,pi.
-if new_method_flag
+if local_params_flag
 	delta = pi/4;
 else
 	delta = pi/20;
@@ -83,7 +83,7 @@ current_time_ind = 0;
 Rs = zeros(3, 3, N);
 I = eye(3);
 
-if ~new_method_flag
+if ~local_params_flag
     % OLD METHOD------
     % Test points for reorientation.
     phis = linspace(0,2*pi,100);
@@ -100,7 +100,7 @@ timeouts = 0;
 while (T_achieved < T) % While we have not finished the simulation.
     
 	rot_counter = rot_counter + 1;
-    if new_method_flag
+    if local_params_flag
         % For each segment, compute a rotation matrix R that takes d3 to [1,0,0]^T.
         axs = d3 + [1;0;0]; axs = axs ./ sqrt(sum(axs.^2, 1));
         for i = 1 : N
@@ -134,7 +134,7 @@ while (T_achieved < T) % While we have not finished the simulation.
 
     % Now that we have the D and parameterisation, compute d/dt(D3) initially
     % to inform a better choice of R.
-    if new_method_flag & reorient_velocities_flag
+    if local_params_flag & reorient_velocities_flag
         %---Comment/uncomment these lines to use the compiled MEX function. See
         %     README.txt for compilation instructions.
         dZ_init = dz_free_space(T_achieved,Z,EH,N,epsilon,Rs,clamped);
