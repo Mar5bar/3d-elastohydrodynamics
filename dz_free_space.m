@@ -220,10 +220,19 @@ function R = dz_free_space(t,Z,EH,N,epsilon,Rs,clamped)
 
 	% Form the RHS.
 	R = zeros(3*N+3,1);
-	% 4th order central differences, 2nd order differences at ends.
-    d1Nds = [-0.5*d1N(:,3) + 2*d1N(:,2) - 1.5*d1N(:,1), 0.5*d1N(:,3) - 0.5*d1N(:,1), -1/12*d1N(:,5:end) + 2/3*d1N(:,4:end-1) - 2/3*d1N(:,2:end-3) + 1/12*d1N(:,1:end-4), 0.5*d1N(:,end) - 0.5*d1N(:,end-2), 1.5*d1N(:,end) - 2*d1N(:,end-1) + 0.5*d1N(:,end-2)]*N;
-    d2Nds = [-0.5*d2N(:,3) + 2*d2N(:,2) - 1.5*d2N(:,1), 0.5*d2N(:,3) - 0.5*d2N(:,1), -1/12*d2N(:,5:end) + 2/3*d2N(:,4:end-1) - 2/3*d2N(:,2:end-3) + 1/12*d2N(:,1:end-4), 0.5*d2N(:,end) - 0.5*d2N(:,end-2), 1.5*d2N(:,end) - 2*d2N(:,end-1) + 0.5*d2N(:,end-2)]*N;
-    d3Nds = [-0.5*d3N(:,3) + 2*d3N(:,2) - 1.5*d3N(:,1), 0.5*d3N(:,3) - 0.5*d3N(:,1), -1/12*d3N(:,5:end) + 2/3*d3N(:,4:end-1) - 2/3*d3N(:,2:end-3) + 1/12*d3N(:,1:end-4), 0.5*d3N(:,end) - 0.5*d3N(:,end-2), 1.5*d3N(:,end) - 2*d3N(:,end-1) + 0.5*d3N(:,end-2)]*N;
+	
+    % Compute the derivatives of the directors to compute the elastic
+    % restoring force. To do this, in order to suppress artefact oscillations
+    % in numerics, we will use a crude approximation of the directors at the
+    % nodes, and compute first-order finite differences. This sacrifices
+    % inherent symmetry in the numerics, recovered as N -> inf, but greatly
+    % improves both performance and overall accuracy.
+    d1N = [d1; d1(end,:)];
+    d2N = [d2; d2(end,:)];
+    d3N = [d3; d3(end,:)];
+    d1Nds = [d1N(2,:) - d1N(1,:);d1N(2:end,:) - d1N(1:end-1,:)]*N;
+    d2Nds = [d2N(2,:) - d2N(1,:);d2N(2:end,:) - d2N(1:end-1,:)]*N;
+    d3Nds = [d3N(2,:) - d3N(1,:);d3N(2:end,:) - d3N(1:end-1,:)]*N;
 
     % We now compute kappa1,kappa2,kappa3 at the s_i, and subtract off the
     % intrinsic curvature. Now, kappa represents the difference between the
