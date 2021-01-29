@@ -210,21 +210,21 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
     % nodes, and compute first-order finite differences. This sacrifices
     % inherent symmetry in the numerics, recovered as N -> inf, but greatly
     % improves both performance and overall accuracy.
-    d1N = [d1; d1(end,:)];
-    d2N = [d2; d2(end,:)];
-    d3N = [d3; d3(end,:)];
-    d1Nds = [d1N(2,:) - d1N(1,:);d1N(2:end,:) - d1N(1:end-1,:)]*N;
-    d2Nds = [d2N(2,:) - d2N(1,:);d2N(2:end,:) - d2N(1:end-1,:)]*N;
-    d3Nds = [d3N(2,:) - d3N(1,:);d3N(2:end,:) - d3N(1:end-1,:)]*N;
+    d1NC = [d1; d1(end,:)];
+    d2NC = [d2; d2(end,:)];
+    d3NC = [d3; d3(end,:)];
+    d1NCds = [d1NC(2,:) - d1NC(1,:);d1NC(2:end,:) - d1NC(1:end-1,:)]*N;
+    d2NCds = [d2NC(2,:) - d2NC(1,:);d2NC(2:end,:) - d2NC(1:end-1,:)]*N;
+    d3NCds = [d3NC(2,:) - d3NC(1,:);d3NC(2:end,:) - d3NC(1:end-1,:)]*N;
 
 	% We now compute kappa1,kappa2,kappa3 at the s_i, and subtract off the
 	% intrinsic curvature. Now, kappa represents the difference between the
 	% curvature and the intrinsic curvature, not simply the curvature.
 	intrinsic_curv = zeros(N+1,3);
 	intrinsic_curv = intrinsic_curvature(t,N);
-	kappa1 = dot(d3N,d2Nds,2) - intrinsic_curv(:,1);
-	kappa2 = dot(d1N,d3Nds,2) - intrinsic_curv(:,2);
-	kappa3 = dot(d2N,d1Nds,2) - intrinsic_curv(:,3);
+	kappa1 = dot(d3NC,d2NCds,2) - intrinsic_curv(:,1);
+	kappa2 = dot(d1NC,d3NCds,2) - intrinsic_curv(:,2);
+	kappa3 = dot(d2NC,d1NCds,2) - intrinsic_curv(:,3);
 	
 	% We are assuming moment free at the base.
 	kappa1(1) = 0;
