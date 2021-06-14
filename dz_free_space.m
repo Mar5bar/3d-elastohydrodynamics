@@ -1,4 +1,4 @@
-function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
+function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped,magnetic_moments)
 %% DZ_FREE_SPACE(T,Z,EH,N,EPSILON,ROT,CLAMPED) returns the time derivative of
 %   Z for the filament given in Z, with current basis ROT. Filament aspect
 %   ratio is EPSILON, with number of segments N and elastohydrodynamic number
@@ -238,7 +238,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,rot,clamped)
 
 	% Add on the integrated contribution of any internally generated moments.
 	internal_moments = zeros(3,N);
-	internal_moments = integrated_internal_moments(t,N,d1,d2,d3,d1N,d2N,d3N);
+	internal_moments = integrated_internal_moments(t,N,d1,d2,d3,d1N,d2N,d3N,rot,magnetic_moments,X);
 	R(4:end) = R(4:end) - internal_moments(:);
 
 	% Form the linear system.

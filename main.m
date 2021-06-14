@@ -19,6 +19,9 @@ epsilon = 0.01;
 % Threshold for THETA values being too close to 0,pi.
 delta = pi/20;
 
+% (Scalar) magnetic moment of each segment;
+magnetic_moments = ones(N,1);
+
 %---------------
 % Time settings.
 %---------------
@@ -118,8 +121,8 @@ while (T_achieved < T) % While we have not finished the simulation.
 
 %---Comment/uncomment these lines to use the compiled MEX function. See
 %     README.txt for compilation instructions.
-	dZ=@(t,z) dz_free_space(t,z,EH,N,epsilon,rot,clamped);
-	% dZ=@(t,z) dz_free_space_mex(t,z,EH,N,epsilon,rot,clamped);
+	dZ=@(t,z) dz_free_space(t,z,EH,N,epsilon,rot,clamped,magnetic_moments);
+	% dZ=@(t,z) dz_free_space_mex(t,z,EH,N,epsilon,rot,clamped,magnetic_moments);
 %---
 
 	% Evaluate the solution with ode15s, 

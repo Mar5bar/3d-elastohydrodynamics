@@ -1,26 +1,17 @@
-function integrated_moments_director = integrated_internal_moments(t,N,d1,d2,d3,d1N,d2N,d3N)
+function integrated_moments_director = integrated_internal_moments(t,N,d1,d2,d3,d1N,d2N,d3N,rot,magnetic_moments,X)
 % Return moments integrated from s to 1, which can be specified generically.
-% Here, as an example, we prescribe sinusoidal moments in the d1 and d2
-% directions. This has been disabled by line 32, which should be removed to
-% enable actively generated moments. Integrated moments are returned in the
-% local director basis.
+% Here, we assume that each segment has a magnetic moment, oriented along the
+% segment tangent, and there is an external magnetic field. This has been
+% disabled by line 23, which should be removed to enable actively generated
+% moments. Integrated moments are returned in the local director basis.	
 
-	s = (0:1/N:1)';
-    % Specify the integrated components in the d1,d2,d3 directions in the form
-    % of an antiderivative. For example, if the d2 component of the active
-    % moment was cos(s-t), specify d2_comp = @(s) sin(s-t).
-	d1_comp = @(s) -1 * cos(s-t);
-	d2_comp = @(s) 1 * sin(s-t);
-	d3_comp = @(s) 0 * s;
+    % Evaluate the magnetic field at the centre of each segment. We rotate the
+    % magnetic field to the current frame via rot.
+    H = (rot*(magnetic_field(t,0.5*(X(1:end-1,:) + X(2:end,:))))')';
 
-    % Integrate the moments over each segment.
-    segment_d1_comp = d1_comp(s(2:end)) - d1_comp(s(1:end-1));
-    segment_d2_comp = d2_comp(s(2:end)) - d2_comp(s(1:end-1));
-    segment_d3_comp = d3_comp(s(2:end)) - d3_comp(s(1:end-1));
-
-    % Construct the moments integrated over each segment, assuming constant
-    % directors on each segment.
-    segment_moments = segment_d1_comp .* d1 + segment_d2_comp .* d2 + segment_d3_comp .* d3;
+    % The integrated moment on each segment is given by ds *
+    % cross(magnetic_moments .* d3, magnetic_field). This is in the lab frame.
+    segment_moments = cross(magnetic_moments .* d3,H,2) / N;
 
     % Integrate the moments from s=s_i to L.
     integrated_moments = cumsum(segment_moments,'reverse');
