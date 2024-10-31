@@ -261,8 +261,7 @@ function R = dz_free_space(t,Z,EH,N,epsilon,Rs,clamped)
 	% Form the linear system.
 	lin_sys = -EH*B*Ainv*Q;
 
-	% Add on the background flow contribution, noting that the flow needs to
-	% be cast in the current basis.
+	% Add on the background flow contribution.
 	back = zeros(3*N+3,1);
 	back = EH*B*Ainv*background_flow(X,d3,t);
 	R = R - back;
